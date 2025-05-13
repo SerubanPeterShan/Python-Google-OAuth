@@ -2,7 +2,7 @@
 name = "flask-google-oauth-app"
 version = "0.1.0"
 description = "A Flask app with Google OAuth and local authentication."
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Seruban Peter Shan"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
