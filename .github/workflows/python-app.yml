@@ -8,6 +8,10 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: false
 
 jobs:
   build:
@@ -43,8 +47,14 @@ jobs:
     - name: Determine semantic version
       id: get_version
       run: |
-        VERSION=$(git describe --tags --abbrev=0 || echo "0.1.0")
+        VERSION_INPUT="${{ github.event.inputs.version }}"
+        if [ -n "$VERSION_INPUT" ]; then
+          VERSION="$VERSION_INPUT"
+        else
+          VERSION=$(git describe --tags --abbrev=0 || echo "0.1.0")
+        fi
         echo "$VERSION" > VERSION
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Build artifact
       run: |
@@ -66,4 +76,45 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: flask-app-artifact
-        path: artifact 
+        path: artifact
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: flask-app-artifact
+          path: flask-app-artifact
+
+      - name: Read version
+        id: read_version
+        run: |
+          VERSION=$(cat flask-app-artifact/VERSION)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.read_version.outputs.version }}
+          release_name: Release ${{ steps.read_version.outputs.version }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./flask-app-artifact.zip
+          asset_name: flask-app-artifact.zip
+          asset_content_type: application/zip
+      - name: Zip artifact
+        run: |
+          cd flask-app-artifact
+          zip -r ../flask-app-artifact.zip . 
