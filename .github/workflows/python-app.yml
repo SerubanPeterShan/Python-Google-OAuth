@@ -48,10 +48,19 @@ jobs:
 
     - name: Build artifact
       run: |
-        mkdir artifact
-        cp -r * artifact/
+        mkdir -p artifact
+        shopt -s extglob
+        cp -r !(artifact) artifact/
         rm -rf artifact/venv artifact/__pycache__
         cp VERSION artifact/
+
+    - name: Upload Poetry cache
+      uses: actions/upload-artifact@v4
+      with:
+        name: poetry-cache
+        path: |
+          ~/.cache/pypoetry/virtualenvs
+          .venv
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
